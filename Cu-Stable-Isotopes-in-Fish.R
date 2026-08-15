@@ -1082,11 +1082,31 @@ ggsave(
   dpi = 600
 )
 
-###
+#### teste Git
 
-# teste Git
-
-
+dados %>%
+  group_by(Estuary) %>%
+  group_split() %>%
+  lapply(function(x) {
+    
+    cat("\n\n============================\n")
+    cat("Estuary:", unique(x$Estuary), "\n")
+    cat("============================\n")
+    
+    Hmisc::rcorr(
+      as.matrix(
+        x %>%
+          dplyr::select(
+            Length,
+            Cu_burden,
+            Cu_conc,
+            d65Cu
+          )
+      ),
+      type = "pearson"
+    )
+    
+  })
 
 
 
