@@ -1108,5 +1108,127 @@ dados %>%
     
   })
 
+# ============================================================
+# REGRESSÕES POR ESTUÁRIO
+# ============================================================
+
+library(dplyr)
+library(broom)
+library(writexl)
+
+# ------------------------------------------------------------
+# 1. Definir as relações a serem testadas
+# ------------------------------------------------------------
+
+modelos <- list(
+  "Length_Cu_burden" = Cu_burden ~ Length,
+  "Length_Cu_conc"   = Cu_conc ~ Length,
+  "Length_d65Cu"     = d65Cu ~ Length,
+  "Burden_Cu_conc"   = Cu_conc ~ Cu_burden,
+  "Burden_d65Cu"     = d65Cu ~ Cu_burden,
+  "Conc_d65Cu"       = d65Cu ~ Cu_conc
+)
 
 
+############################################################
+### REGRESSÕES POR ESTUÁRIO
+############################################################
+
+library(dplyr)
+library(writexl)
+
+# Lista para armazenar os resultados
+resultados <- list()
+
+# Estuários
+estuarios <- unique(dados$Estuary)
+
+# Relações a testar
+relacoes <- list(
+  Length_Cu_burden = c("Cu_burden", "Length"),
+  Length_Cu_conc   = c("Cu_conc", "Length"),
+  Length_d65Cu     = c("d65Cu", "Length"),
+  Burden_Cu_conc   = c("Cu_conc", "Cu_burden"),
+  Burden_d65Cu     = c("d65Cu", "Cu_burden"),
+  Conc_d65Cu       = c("d65Cu", "Cu_conc")
+)
+
+# Loop
+for (nome_relacao in names(relacoes)) {
+  
+  resposta <- relacoes[[nome_relacao]][1]
+  explicativa <- relacoes[[nome_relacao]][2]
+  
+  for (estuario in estuarios) {
+    
+    # Selecionar estuário
+    dados_est <- dados %>%
+      filter(Estuary == estuario)
+    
+    # Criar fórmula
+    formula_modelo <- as.formula(
+      paste(resposta, "~", explicativa)
+    )
+    
+    # Modelo
+    modelo <- lm(
+      formula_modelo,
+      data = dados_est
+    )
+    
+    # Summary
+    sum_modelo <- summary(modelo)
+    coef <- sum_modelo$coefficients
+    IC <- confint(modelo)
+    
+    # Resultado
+    resultado <- data.frame(
+      
+      Estuary = estuario,
+      Relationship = nome_relacao,
+      
+      Intercept = coef[1, "Estimate"],
+      Intercept_SE = coef[1, "Std. Error"],
+      Intercept_p = coef[1, "Pr(>|t|)"],
+      
+      Slope = coef[2, "Estimate"],
+      Slope_SE = coef[2, "Std. Error"],
+      Slope_p = coef[2, "Pr(>|t|)"],
+      
+      Slope_CI95_lower = IC[2, 1],
+      Slope_CI95_upper = IC[2, 2],
+      
+      R2 = sum_modelo$r.squared,
+      Adjusted_R2 = sum_modelo$adj.r.squared,
+      
+      F_value = sum_modelo$fstatistic[1],
+      
+      Model_p = pf(
+        sum_modelo$fstatistic[1],
+        sum_modelo$fstatistic[2],
+        sum_modelo$fstatistic[3],
+        lower.tail = FALSE
+      ),
+      
+      N = nobs(modelo)
+    )
+    
+    resultados[[length(resultados) + 1]] <- resultado
+  }
+}
+
+# Juntar resultados
+tabela_regressoes <- bind_rows(resultados)
+
+# Organizar
+tabela_regressoes <- tabela_regressoes %>%
+  arrange(Relationship, Estuary)
+
+# Mostrar no console
+print(tabela_regressoes)
+
+# Salvar Excel
+write_xlsx(
+  tabela_regressoes,
+  "Tabelas/Regressions_by_Estuary.xlsx"
+)
