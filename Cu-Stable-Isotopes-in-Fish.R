@@ -1232,3 +1232,4 @@ write_xlsx(
   tabela_regressoes,
   "Tabelas/Regressions_by_Estuary.xlsx"
 )
+
